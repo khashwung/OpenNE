@@ -7,7 +7,8 @@ from . import walker
 class Node2vec(object):
 
     def __init__(self, graph, path_length, num_paths, dim, p=1.0, q=1.0, dw=False, **kwargs):
-        
+
+        # get means getOrElse
         kwargs["workers"] = kwargs.get("workers", 1)
         if dw:
             kwargs["hs"] = 1
@@ -20,7 +21,9 @@ class Node2vec(object):
         else:
             self.walker = walker.Walker(graph, p=p, q=q, workers=kwargs["workers"])
             print("Preprocess transition probs...")
+            # 初始化转移概率，根据每个节点的周围情况计算相应的alias setup
             self.walker.preprocess_transition_probs()
+        # 生成walk sequence，注意：这里包含多个epoch，即一个节点walk若干次
         sentences = self.walker.simulate_walks(num_walks=num_paths, walk_length=path_length)
         kwargs["sentences"] = sentences
         kwargs["min_count"] = kwargs.get("min_count", 0)
@@ -33,6 +36,7 @@ class Node2vec(object):
         self.vectors = {}
         for word in graph.G.nodes():
             self.vectors[word] = word2vec.wv[word]
+        # 转换后，删除word2vec
         del word2vec
 
     def save_embeddings(self, filename):

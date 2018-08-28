@@ -6,7 +6,9 @@ FLAGS = flags.FLAGS
 
 
 class Model(object):
+    ''' 一个抽象类，实现了部分逻辑 '''
     def __init__(self, **kwargs):
+        # kwargs已经是个字典
         allowed_kwargs = {'name', 'logging'}
         for kwarg in kwargs.keys():
             assert kwarg in allowed_kwargs, 'Invalid keyword argument: ' + kwarg
@@ -41,6 +43,7 @@ class Model(object):
             self._build()
 
         # Build sequential layer model
+        # 所有的中间层都存在activations变量里
         self.activations.append(self.inputs)
         for layer in self.layers:
             hidden = layer(self.activations[-1])
@@ -61,6 +64,7 @@ class Model(object):
         pass
 
     def _loss(self):
+        ''' 父类定义，子类实现 '''
         raise NotImplementedError
 
     def _accuracy(self):
@@ -129,6 +133,7 @@ class MLP(Model):
         return tf.nn.softmax(self.outputs)
 
 
+# Model类的子类
 class GCN(Model):
     def __init__(self, placeholders, input_dim, hidden1, weight_decay, **kwargs):
         super(GCN, self).__init__(**kwargs)
@@ -138,6 +143,7 @@ class GCN(Model):
         self.weight_decay = weight_decay
         self.input_dim = input_dim
         # self.input_dim = self.inputs.get_shape().as_list()[1]  # To be supported in future Tensorflow versions
+        # 自动获取输出维度
         self.output_dim = placeholders['labels'].get_shape().as_list()[1]
         self.placeholders = placeholders
 
@@ -146,11 +152,15 @@ class GCN(Model):
         self.build()
 
     def _loss(self):
+        ''' 也是在父类中定义，子类中实现的方法
+            损失包括两块：weight decay（对权重惩罚）损失和标签的cross entropy损失
+        '''
         # Weight decay loss
         for var in self.layers[0].vars.values():
             self.loss += self.weight_decay * tf.nn.l2_loss(var)
 
         # Cross entropy error
+        # 所谓mask损失，也只是针对训练集或者是测试集取个mask之类的
         self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
                                                   self.placeholders['labels_mask'])
 
@@ -158,8 +168,10 @@ class GCN(Model):
         self.accuracy = masked_accuracy(self.outputs, self.placeholders['labels'],
                                         self.placeholders['labels_mask'])
 
+    # 这是实现父类Model的抽象方法。该方法必须实现
     def _build(self):
 
+        # 定义了两层GCN模型
         self.layers.append(GraphConvolution(input_dim=self.input_dim,
                                             output_dim=self.hidden1,
                                             placeholders=self.placeholders,

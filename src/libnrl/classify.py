@@ -23,16 +23,20 @@ class Classifier(object):
 
     def __init__(self, vectors, clf):
         self.embeddings = vectors
+        # OneVsRestClassifier会对clf做一个wrapper，对于每个
         self.clf = TopKRanker(clf)
         self.binarizer = MultiLabelBinarizer(sparse_output=True)
 
     def train(self, X, Y, Y_all):
+        # one vs rest的训练方法
         self.binarizer.fit(Y_all)
         X_train = [self.embeddings[x] for x in X]
+        # MultiLabelBinarizer转换后会由比如标签[(1,2),(3,)] => [[1,1,0],[0,0,1]]。一个样本会有多个标签
         Y = self.binarizer.transform(Y)
         self.clf.fit(X_train, Y)
 
     def evaluate(self, X, Y):
+        # one vs rest的评估方法
         top_k_list = [len(l) for l in Y]
         Y_ = self.predict(X, top_k_list)
         Y = self.binarizer.transform(Y)
@@ -59,6 +63,7 @@ class Classifier(object):
         shuffle_indices = numpy.random.permutation(numpy.arange(len(X)))
         X_train = [X[shuffle_indices[i]] for i in range(training_size)]
         Y_train = [Y[shuffle_indices[i]] for i in range(training_size)]
+        # the rest is for test
         X_test = [X[shuffle_indices[i]] for i in range(training_size, len(X))]
         Y_test = [Y[shuffle_indices[i]] for i in range(training_size, len(X))]
 
@@ -92,6 +97,7 @@ def read_node_label(filename):
         if l == '':
             break
         vec = l.strip().split(' ')
+        # 每行左x，右y
         X.append(vec[0])
         Y.append(vec[1:])
     fin.close()

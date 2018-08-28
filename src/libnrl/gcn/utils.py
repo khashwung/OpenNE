@@ -80,8 +80,10 @@ def sparse_to_tuple(sparse_mx):
         coords = np.vstack((mx.row, mx.col)).transpose()
         values = mx.data
         shape = mx.shape
+        # 转成坐标，数值的稀疏矩阵表达方式
         return coords, values, shape
 
+    # list和数值都可以转化
     if isinstance(sparse_mx, list):
         for i in range(len(sparse_mx)):
             sparse_mx[i] = to_tuple(sparse_mx[i])
@@ -93,27 +95,35 @@ def sparse_to_tuple(sparse_mx):
 
 def preprocess_features(features):
     """Row-normalize feature matrix and convert to tuple representation"""
+    # 沿着1轴
     rowsum = np.array(features.sum(1))
     r_inv = np.power(rowsum, -1).flatten()
     r_inv[np.isinf(r_inv)] = 0.
+    # 关于每个节点总特征和的对角矩阵
     r_mat_inv = sp.diags(r_inv)
+    # 输入np.array形式，存成稀疏矩阵的形式
     features = sp.coo_matrix(features)
+    # 实际上是对features进行了归一化，归一化因子是每行的总和
     features = r_mat_inv.dot(features)
+    # 转化为稀疏矩阵的表达方式
     return sparse_to_tuple(features)
 
 
 def normalize_adj(adj):
     """Symmetrically normalize adjacency matrix."""
+    # 归一化一下，因为如果不归一化，那么节点度数多的倾向于特征会更大，可能会产生数据偏移
     adj = sp.coo_matrix(adj)
     rowsum = np.array(adj.sum(1))
     d_inv_sqrt = np.power(rowsum, -0.5).flatten()
     d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
     d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+    # D^(-1/2) A D^(1/2)的计算, tocoo() 等于sp.coo_matrix(adj)
     return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
 
 
 def preprocess_adj(adj):
     """Preprocessing of adjacency matrix for simple GCN model and conversion to tuple representation."""
+    # gcn中，节点自己的属性也是非常非常重要的，因此也要作为特征加进来，即sp.eye(adj.shape[0])
     adj_normalized = normalize_adj(adj + sp.eye(adj.shape[0]))
     return sparse_to_tuple(adj_normalized)
 

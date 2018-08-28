@@ -3,13 +3,13 @@ import numpy as np
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from sklearn.linear_model import LogisticRegression
-from libnrl.graph import *
-from libnrl import node2vec
-from libnrl.classify import Classifier, read_node_label
-from libnrl import line
-from libnrl import tadw
-from libnrl.gcn import gcnAPI
-from libnrl.grarep import GraRep
+from .libnrl.graph import *
+from .libnrl import node2vec
+from .libnrl.classify import Classifier, read_node_label
+from .libnrl import line
+from .libnrl import tadw
+from .libnrl.gcn import gcnAPI
+from .libnrl.grarep import GraRep
 import time
 
 def parse_args():
@@ -77,6 +77,7 @@ def main(args):
     g = Graph()
     print("Reading...")
 
+    # 两种图的表示方法：邻居节点表示与点对表示
     if args.graph_format == 'adjlist':
         g.read_adjlist(filename=args.input)
     elif args.graph_format == 'edgelist':
@@ -87,10 +88,10 @@ def main(args):
                                  workers=args.workers, p=args.p, q=args.q, window=args.window_size)
     elif args.method == 'line':
         if args.label_file and not args.no_auto_save:
-            model = line.LINE(g, epoch = args.epochs, rep_size=args.representation_size, order=args.order, 
+            model = line.LINE(g, epoch=args.epochs, rep_size=args.representation_size, order=args.order,
                 label_file=args.label_file, clf_ratio=args.clf_ratio)
         else:
-            model = line.LINE(g, epoch = args.epochs, rep_size=args.representation_size, order=args.order)
+            model = line.LINE(g, epoch=args.epochs, rep_size=args.representation_size, order=args.order)
     elif args.method == 'deepWalk':
         model = node2vec.Node2vec(graph=g, path_length=args.walk_length,
                                  num_paths=args.number_walks, dim=args.representation_size,
@@ -111,10 +112,12 @@ def main(args):
                             epochs=args.epochs, clf_ratio=args.clf_ratio)
     elif args.method == 'grarep':
         model = GraRep(graph=g, Kstep=args.kstep, dim=args.representation_size)
+    # 模型已经建立，模型建立的同时，完成模型的训练
     t2 = time.time()
     print(t2-t1)
     if args.method != 'gcn':
         print("Saving embeddings...")
+        # 保存embedding
         model.save_embeddings(args.output)
     if args.label_file and args.method != 'gcn':
         vectors = model.vectors

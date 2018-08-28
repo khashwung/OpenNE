@@ -46,6 +46,7 @@ class GCN(object):
             t = time.time()
             # Construct feed dictionary
             feed_dict = self.construct_feed_dict(self.train_mask)
+            # 这是dict的方法
             feed_dict.update({self.placeholders['dropout']: self.dropout})
 
             # Training step
@@ -60,6 +61,7 @@ class GCN(object):
                   "train_acc=", "{:.5f}".format(outs[2]), "val_loss=", "{:.5f}".format(cost),
                   "val_acc=", "{:.5f}".format(acc), "time=", "{:.5f}".format(time.time() - t))
 
+            # early stopping的判断标准
             if epoch > self.early_stopping and cost_val[-1] > np.mean(cost_val[-(self.early_stopping+1):-1]):
                 print("Early stopping...")
                 break
@@ -81,11 +83,14 @@ class GCN(object):
 
     def build_placeholders(self):
         num_supports = 1
+        # 将所有的输入占位全部放进字典中
         self.placeholders = {
+            # tf也有稀疏placeholder，做graph的时候可能经常用到
             'support': [tf.sparse_placeholder(tf.float32) for _ in range(num_supports)],
             'features': tf.sparse_placeholder(tf.float32, shape=tf.constant(self.features[2], dtype=tf.int64)),
             'labels': tf.placeholder(tf.float32, shape=(None, self.labels.shape[1])),
             'labels_mask': tf.placeholder(tf.int32),
+            # placeholder_with_default，对我来说也是新的方法，忘了
             'dropout': tf.placeholder_with_default(0., shape=()),
             # helper variable for sparse dropout
             'num_features_nonzero': tf.placeholder(tf.int32)
@@ -95,26 +100,31 @@ class GCN(object):
         g = self.graph.G
         look_up = self.graph.look_up_dict
         labels = []
+        # 所有的label与某个数字的映射对
         label_dict = {}
         label_id = 0
         for node in g.nodes():
+            # 保存成(node, label)的tuple对
             labels.append((node, g.nodes[node]['label']))
             for l in g.nodes[node]['label']:
                 if l not in label_dict:
                     label_dict[l] = label_id
                     label_id += 1
+        # 生成的一个multi label一个label array
         self.labels = np.zeros((len(labels), label_id))
         self.label_dict = label_dict
         for node, l in labels:
             node_id = look_up[node]
             for ll in l:
                 l_id = label_dict[ll]
+                # 有哪个label，那么label所在的那一列为1
                 self.labels[node_id][l_id] = 1
 
     def build_train_val_test(self):
         """
             build train_mask test_mask val_mask
         """
+        # 数据集用于训练的比例
         train_precent = self.clf_ratio
         training_size = int(train_precent * self.graph.G.number_of_nodes())
         state = np.random.get_state()
@@ -134,7 +144,9 @@ class GCN(object):
         # self.train_mask = sample_mask('train', nodes_num)
         # self.val_mask = sample_mask('valid', nodes_num)
         # self.test_mask = sample_mask('test', nodes_num)
+        # 生成的是随机某个节点的掩码
         self.train_mask = sample_mask(0, training_size-100)
+        # 验证集大小为100
         self.val_mask = sample_mask(training_size-100, training_size)
         self.test_mask = sample_mask(training_size, g.number_of_nodes())
 
@@ -145,12 +157,16 @@ class GCN(object):
         """
         g = self.graph.G
         look_back = self.graph.look_back_list
+        # 行为节点
         self.features = np.vstack([g.nodes[look_back[i]]['feature']
-            for i in range(g.number_of_nodes())]) 
+            for i in range(g.number_of_nodes())])
+        # 归一化并转化为稀疏矩阵的表达方式
         self.features = preprocess_features(self.features)
         self.build_label()
         self.build_train_val_test()
+        # 获取图的链接矩阵，这是稀疏矩阵对象
         adj = nx.adjacency_matrix(g) # the type of graph
+        # 加上单元矩阵，并进行归一化，最后得到稀疏矩阵的表达
         self.support = [preprocess_adj(adj)]
 
 
